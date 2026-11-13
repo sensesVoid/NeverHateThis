@@ -1,6 +1,6 @@
 # NeverHateThis — Design
 
-Status: Draft for approval · Date: 2026-11-13 · Supersedes nothing · Related: [PRD v0.2](../PRD.md)
+Status: Approved 2026-11-13 · Supersedes nothing · Related: [PRD v0.2](../PRD.md)
 
 ## 1. Intent
 
