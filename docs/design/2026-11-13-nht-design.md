@@ -71,7 +71,7 @@ Implication: ToneBridge is a catalog play wearing an amp app. Its moat is conten
 | 3 | Reference devices | Three **2020-or-newer** phones: gate device (Redmi 9A / Galaxy A12 class, 2–3 GB), mid (Pixel 4a / Galaxy A54), high (Pixel 8). Plus iRig 2 and one USB interface with a real mic input. |
 | 4 | IR / amp sources | Only content we make or can prove: our own algorithmic amps, our own measured or synthetic IRs, user-imported captures never bundled without written permission. |
 | 5 | Distribution | **GitHub Releases only** — a signed arm64 APK per `v*` tag, plus content packs on Releases behind an Ed25519-signed manifest with SHA-256 addressing. No Play account, no AAB, no backend. |
-| 6 | Monetization | **Free, all the way.** Donations only, no unlocks, no ads, no subscription. HD tier is gated by device capability, never by payment. |
+| 6 | Monetization | **Free, all the way.** Donations only, no unlocks, no ads, no subscription, no account. |
 | 7 | AI providers | **BYOK**: OpenAI, Gemini, Anthropic, OpenRouter. Provider capabilities are declared per task. Keys stay in Android Keystore. |
 | 8 | ToneBridge comparison | Closed (section 4.1). Compete on live/speaker, USB, vocals, user pedals, honesty. Do not compete on catalog. |
 
