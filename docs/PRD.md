@@ -2,6 +2,8 @@
 
 Status: Draft v0.2 · Date: 2026-11-13 · Platform: Android · Core language: Rust · Brand: NeverHateThis
 
+> Section 9 is closed in [the design doc](design/2026-11-13-nht-design.md). The HD neural tier is superseded by algorithmic amp voicings (design §8.6).
+
 ## 1. Summary
 
 NeverHateThis is a lightweight, offline-first Android app for guitar, bass and vocal effects. Users build a signal chain (Rig) from pedals, an amp and a cabinet, browse a Pedal Collection, and create their own pedals in a Pedal Maker with custom cover art. The target audience is people exploring guitar effects who cannot afford an audio interface, so the app must work with cheap inputs (analog iRig-style cables, headset-jack adapters, the built-in mic) and run well on low- and mid-range phones. The goal is a quality of tone and usability that can rival existing apps such as ToneBridge.

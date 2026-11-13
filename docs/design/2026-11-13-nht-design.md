@@ -56,7 +56,7 @@ The product is judged by one moment: **plug in, and within seconds a sound comes
 Implication: ToneBridge is a catalog play wearing an amp app. Its moat is content, not DSP, and its weak points are exactly our core: speaker output, USB, vocals, cheap hardware.
 
 ### 4.2 Platform constraints
-- AAudio exists from API 26, but Google does not recommend it on Android 8.0 (a stream-close crash bug; Oboe deliberately falls back to OpenSL ES there). Oboe uses AAudio by default from API 27, and the MMAP low-latency path is enabled from Android 8.1. Our floor is therefore API 27.
+- AAudio exists from API 26, but Google does not recommend it on Android 8.0 (a stream-close crash bug; Oboe deliberately falls back to OpenSL ES there). Oboe uses AAudio by default from API 27, and the MMAP low-latency path is enabled from Android 8.1. Our floor is API 29, which matches the 2020+ device class.
 - USB audio host support is OEM-dependent; some interfaces work, some don't. Must be tested per device, never promised globally.
 - Bluetooth adds >100 ms. Live playback over Bluetooth is out.
 - Phone speaker + built-in mic monitoring is an acoustic feedback loop. For vocals the phone is only an effect bridge: external mic in, wired speaker out.
@@ -67,10 +67,10 @@ Implication: ToneBridge is a catalog play wearing an amp app. Its moat is conten
 | # | Question | Decision |
 |---|---|---|
 | 1 | App license | **Apache-2.0** for code; **CC BY 4.0** for starter presets; per-file license metadata for every IR/model. GPLv3 rejected because we do not reuse GPL code and want app-store and commercial options open. |
-| 2 | Android floor | **API 27 (Android 8.1), arm64-v8a only.** x86_64 debug only. API 26 rejected: AAudio is not recommended on 8.0 (stream-close crash); Oboe falls back to OpenSL ES there. |
-| 3 | Reference devices | Three used phones: gate device (Redmi 9A / Galaxy A12 class, 2–3 GB), mid (Pixel 4a / Galaxy A54), high (Pixel 8). Plus iRig 2 and one USB interface with a real mic input. |
+| 2 | Android floor | **API 29 (Android 10), arm64-v8a only**, matching the 2020+ device class. x86_64 debug only. |
+| 3 | Reference devices | Three **2020-or-newer** phones: gate device (Redmi 9A / Galaxy A12 class, 2–3 GB), mid (Pixel 4a / Galaxy A54), high (Pixel 8). Plus iRig 2 and one USB interface with a real mic input. |
 | 4 | IR / amp sources | Only content we make or can prove: our own algorithmic amps, our own measured or synthetic IRs, user-imported captures never bundled without written permission. |
-| 5 | Distribution | ≤4 MB starter content in the APK; everything else from a static host behind an Ed25519-signed manifest with SHA-256 content addressing. No backend. |
+| 5 | Distribution | **GitHub Releases only** — a signed arm64 APK per `v*` tag, plus content packs on Releases behind an Ed25519-signed manifest with SHA-256 addressing. No Play account, no AAB, no backend. |
 | 6 | Monetization | **Free, all the way.** Donations only, no unlocks, no ads, no subscription. HD tier is gated by device capability, never by payment. |
 | 7 | AI providers | **BYOK**: OpenAI, Gemini, Anthropic, OpenRouter. Provider capabilities are declared per task. Keys stay in Android Keystore. |
 | 8 | ToneBridge comparison | Closed (section 4.1). Compete on live/speaker, USB, vocals, user pedals, honesty. Do not compete on catalog. |
@@ -90,7 +90,7 @@ A exists to produce the numbers B needs: buffer sizes, CPU headroom, USB behavio
 ## 7. What v1 includes
 
 - Rig: ordered chain (input → pedals → amp → cab → output); add/remove/reorder/bypass; knobs; save/load; click-free swaps; meters; default noise gate.
-- Amp: three standard algorithmic amps (clean, crunch, lead) plus cab convolution; HD tier behind a CPU check.
+- Amp: three algorithmic voicings (clean, crunch, lead) built from a preamp waveshaper, passive tone stack, power-amp stage and a parametric cabinet; no captures and no neural models.
 - Pedals: gate, compressor, overdrive, distortion, fuzz, EQ, chorus, flanger, phaser, tremolo, delay, reverb, wah; de-esser and monophonic pitch correction for vocals.
 - Pedal Maker: combine blocks, expose chosen parameters as knobs, versioned JSON, cover art (templates, image import, BYOK AI generation), export/import.
 - Input: instrument modes (vocal, electric guitar, bass), voicing profiles, gain/DC block/HPF/boost, loopback calibration, feedback guard.
@@ -153,15 +153,16 @@ UniFFI covers the control plane only. The audio callback lives entirely in Rust 
 - Modulation: delay-line based chorus/flanger/phaser, LFO smoothed.
 - Delay: tape-style with LP in the feedback path, tempo sync optional.
 - Reverb: Dattorro plate plus an FDN variant; no GPL code.
-- Cabinet: partitioned FFT convolution (256-frame blocks, 200 ms IR max), mono IR → stereo out.
+- Cabinet: parametric IIR model by default (speaker resonance, inductance shelf, low-pass and mic distance), with an optional FIR/IR convolution path (partitioned FFT, 256-frame blocks, 200 ms max) for later licensed or user IRs. Mono → stereo out.
 - Vocal: de-esser as band-split compressor; pitch correction monophonic only (pitch detection + resampling), labeled as such.
 - Tuner: YIN, ±1 cent, A4 reference configurable.
 
 ### 8.6 Amp and cab
 
-- Standard tier: preamp gain stages → tone stack → power-amp sag/compression → cab IR. Low CPU by design.
-- HD tier: small GRU/LSTM inference in Rust (a few thousand weights), exported in a simple binary format, CPU-checked on first use. **v1 does not import NAM files**: real NAM models are WaveNet/A2-class and would turn a 4–6 week milestone into a multi-month engine project. A NAM-compatible importer is a v2 candidate; no third-party captures are bundled.
-- Three starter cabs: 1×12, 2×12, 4×12, measured or synthetic, created for the project.
+- Signal chain per voicing: input HPF → preamp (asymmetric waveshaper or a Koren/Leach triode stage) → passive tone stack (Yeh's Bassman/Marshall/Vox equations) → power amp (sag, presence, output-transformer low-pass) → cabinet.
+- **No captures, no neural models, no NAM import.** The owner has no amps to record, so the strategy is circuit-informed DSP tuned by ear against reference recordings. The reference set is in `docs/research/amp-voicing-references.md`.
+- Cabinet is parametric by default: speaker resonance (fs, Qts), inductance high-shelf, low-pass and mic distance. An optional FIR/IR path exists for later licensed or user IRs; none ship in v1.
+- Three voicings ship: clean (Fender-ish), crunch (Marshall-ish), lead (hot-rodded). Names are descriptive, never brand claims.
 
 ### 8.7 UI
 
@@ -202,7 +203,15 @@ UniFFI covers the control plane only. The audio callback lives entirely in Rust 
 - Sharing is file-based: export via the Android share sheet; import validates before anything is added.
 - Discord invite for chat; **GitHub Discussions** as the searchable archive for pedal files (Discord attachments are not an archive).
 - No marketplace, no upload server, no account, no ratings backend.
-- Donations: GitHub Sponsors / Ko-fi / Liberapay links on the About screen. Donations unlock nothing, so Play's payments policy is not engaged.
+- Donations: GitHub Sponsors / Ko-fi / Liberapay links on the About screen. Donations unlock nothing; they are pure support.
+
+### 8.12 Distribution and CI
+
+- **GitHub Releases is the only channel.** A `v*` tag builds a signed arm64 APK plus `SHA256SUMS` and release notes. No Play account, no AAB, no F-Droid in v1.
+- Users install with "install unknown apps"; updates come from Releases, optionally tracked by Obtainium. The SHA-256 check is documented in the release notes.
+- CI: GitHub Actions runs Rust fmt/clippy/tests and the Android debug build on every push and PR. The release job runs on tags, decodes the keystore from repository secrets, builds `assembleRelease` and publishes the APK.
+- The signing key lives offline with the owner; only the base64 keystore and its passwords live in GitHub Actions secrets.
+- Versioning: SemVer tags, `versionCode` derived from the tag, release notes as the changelog.
 
 ## 9. Testing and gates
 
@@ -217,7 +226,7 @@ UniFFI covers the control plane only. The audio callback lives entirely in Rust 
 - Allocation guard armed in all debug runs.
 
 ### Device gates
-- Gate device must pass 10 minutes at 256 frames with the default chain.
+- The 2020-or-newer gate device must pass 10 minutes at 256 frames with the default chain.
 - USB round trip ≤20 ms is promised only on mid/high devices that pass calibration.
 - Any device that fails is shown as unsupported with an honest reason, plus offline/reamp mode.
 
@@ -227,14 +236,14 @@ Solo estimates, to be reset by the spike.
 
 | Stage | Work | Size |
 |---|---|---|
-| M0 (A) | Spike: Oboe + gate + drive + cab IR + calibration + CPU meter on three phones | 1–2 weeks |
+| M0 (A) | Spike: Oboe + gate + drive + cab sim + calibration + CPU meter on three 2020+ phones | 1–2 weeks |
 | M1 (B) | Rust engine core: blocks, chain, params, crossfade, golden tests | 4–6 weeks |
-| M2 | Amp + cab tier, CPU measurement | 3–4 weeks |
+| M2 | Amp voicings + parametric cab, CPU measurement | 3–4 weeks |
 | M3 | Rig + Collection UI | 4–6 weeks |
 | M4 | Pedal Maker + import/export + community flow | 3–4 weeks |
 | M5 | Tools: tuner, metronome, looper, backing track, reamp | 3–4 weeks |
 | M6 | AI cover art + donations + About | 1–2 weeks |
-| M7 | HD tier + content downloads | 4–6 weeks |
+| M7 | Content packs + voicing refinement | 4–6 weeks |
 
 Total: roughly 6–8 months of solo work. M0 can kill or reshape everything after it, which is the point.
 
@@ -242,7 +251,7 @@ Total: roughly 6–8 months of solo work. M0 can kill or reshape everything afte
 
 - Exact DSP topologies, tone-stack values and gain staging per amp.
 - Whether the Oboe shim or `oboe-rs` wins in practice (default: shim).
-- Model format for HD amps and the training pipeline.
+- Voicing recipes and tone-stack component values per amp; the reference list is the starting point.
 - Visual design of the Rig and Maker screens.
 - Whether the backing track is mixed in Rust or played by ExoPlayer beside the chain (default: Rust mixing for one output stream).
 - Looper length, storage and undo model.
@@ -256,7 +265,8 @@ Total: roughly 6–8 months of solo work. M0 can kill or reshape everything afte
 | USB host support varies by OEM | Test matrix; publish supported interfaces; analog fallback |
 | Acoustic feedback with speaker output | Vocals are bridged through an external mic and wired speaker; feedback guard + notch on guitar |
 | Solo bandwidth over 6–8 months | Milestones are gates; ship M3 as a usable practice amp if later stages slip |
-| Content licensing | Own content first; per-file metadata; signed manifest |
+| Content licensing | Parametric cab and in-house voicings mean no third-party audio assets in v1; any future IRs carry per-file metadata and a signed manifest |
+| Mimicking amps without captures may not satisfy golden-ear players | Reference A/B renders and iterative tone-stack tuning; honest labeling as voicings, not emulations |
 | Rust/Android toolchain friction | Spike uses C++/Oboe to keep device truth independent of Rust setup |
 
 ## Appendix: sources
