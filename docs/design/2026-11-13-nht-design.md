@@ -67,7 +67,7 @@ Implication: ToneBridge is a catalog play wearing an amp app. Its moat is conten
 | # | Question | Decision |
 |---|---|---|
 | 1 | App license | **Apache-2.0** for code; **CC BY 4.0** for starter presets; per-file license metadata for every IR/model. GPLv3 rejected because we do not reuse GPL code and want app-store and commercial options open. |
-| 2 | Android floor | **API 26 (Android 8.0), arm64-v8a only.** x86_64 debug only. |
+| 2 | Android floor | **API 27 (Android 8.1), arm64-v8a only.** x86_64 debug only. API 26 rejected: AAudio is not recommended on 8.0 (stream-close crash); Oboe falls back to OpenSL ES there. |
 | 3 | Reference devices | Three used phones: gate device (Redmi 9A / Galaxy A12 class, 2–3 GB), mid (Pixel 4a / Galaxy A54), high (Pixel 8). Plus iRig 2 and one USB interface with a real mic input. |
 | 4 | IR / amp sources | Only content we make or can prove: our own algorithmic amps, our own measured or synthetic IRs, user-imported captures never bundled without written permission. |
 | 5 | Distribution | ≤4 MB starter content in the APK; everything else from a static host behind an Ed25519-signed manifest with SHA-256 content addressing. No backend. |
@@ -134,11 +134,13 @@ UniFFI covers the control plane only. The audio callback lives entirely in Rust 
 - Parameters are a fixed `[AtomicU32; N]` per block, addressed by stable numeric IDs from the schema. No string lookups on the audio thread.
 - The UI owns the patch document; Rust owns only real-time state. Loading a patch pushes a full parameter set, then the chain.
 - Every block declares: parameter ranges, defaults, units, taper (linear/log), and whether it is mono or stereo.
+- v1 is strictly serial: input → mono pedals → amp → cab → output. No parallel paths, no FX loops, and the cab is always last. The cab is the only mono→stereo point; v1 output is dual-mono. The block trait carries a channel count from day one so a stereo post-cab section can land in v1.1 without a preset-format migration.
 
 ### 8.4 Audio I/O and latency
 
 - 48 kHz, f32, mono in, stereo out.
 - Oboe stream: `InputPreset::Unprocessed`, low-latency performance mode, exclusive where available.
+- Input routing: one picker driven by `AudioManager.getDevices(GET_DEVICES_INPUTS)` plus an L/R channel toggle for 2-input interfaces. No per-OEM routing UI. USB is promised only for the reference interface that passes calibration.
 - Buffer: 192 frames default, negotiated down/up by calibration. Low-end gate: 256 frames, zero xruns over 10 minutes.
 - App-side contribution target: ≤12 ms at 192 frames (input ring + processing + output ring).
 - Calibration: loopback cable test (output → input) for true round trip, plus Oboe timestamp estimate. Stored per device + route. Shown in Settings and on first run.
@@ -158,7 +160,7 @@ UniFFI covers the control plane only. The audio callback lives entirely in Rust 
 ### 8.6 Amp and cab
 
 - Standard tier: preamp gain stages → tone stack → power-amp sag/compression → cab IR. Low CPU by design.
-- HD tier: small GRU/LSTM inference in Rust (a few thousand weights), exported in a simple binary format, CPU-checked on first use. NAM-format import is user content only, never bundled.
+- HD tier: small GRU/LSTM inference in Rust (a few thousand weights), exported in a simple binary format, CPU-checked on first use. **v1 does not import NAM files**: real NAM models are WaveNet/A2-class and would turn a 4–6 week milestone into a multi-month engine project. A NAM-compatible importer is a v2 candidate; no third-party captures are bundled.
 - Three starter cabs: 1×12, 2×12, 4×12, measured or synthetic, created for the project.
 
 ### 8.7 UI
@@ -167,6 +169,7 @@ UniFFI covers the control plane only. The audio callback lives entirely in Rust 
 - Rig is a horizontal chain with drag-to-reorder; pedal detail is a knob panel; Maker is blocks → knobs → art.
 - Visual identity: high-contrast, readable outdoors, large touch targets, no skeuomorphic clutter.
 - Onboarding: input detection (which route is live), calibration, then a "make a sound" recipe.
+- v1 keeps audio in the foreground with the screen on (`FLAG_KEEP_SCREEN_ON`). Screen-off playback via a microphone foreground service is v1.1: it adds permissions, a notification, audio-focus handling and Play review work, none of which the core play-through-the-room moment needs.
 
 ### 8.8 Persistence and formats
 
